@@ -11,13 +11,16 @@ class Problem2Instance:
 
 
 
-#Função pra validação de solução (tem que ver se é factível)
-#Checa se os pesos fazem sentido
+#Função pra validação de solução
+#Checa se os pesos respeitam as restruções dos problemas
 def isSolution(candidate, instance):
     makeSolutionStartAtZero(candidate)
-    n = instance.demands.length
+    n = len(instance.demands)
     curWeight = sum(instance.demands)
-    for i in 1:instance.
+    for i in range(2,n):
+        if curWeight > instance.limits[candidate[i]]:
+            return False
+        curWeight = curWeight - instance.demands[candidate[i]]
     return True
 
 def makeSolutionStartAtZero(solution):
@@ -43,8 +46,7 @@ def routeLength(tsp, solution):
         routeLength += tsp[solution[i - 1]][solution[i]]
     return routeLength
 
-#Função pra geração de vizinho aleatório (ou da vizinhança toda?)
-#iterator? Algo assim? Pesquisar sobre
+#Função pra geração de vizinho aleatório
 def getNeighbours(solution):
     neighbours = []
     for i in range(len(solution)):
@@ -52,19 +54,19 @@ def getNeighbours(solution):
             neighbour = solution.copy()
             neighbour[i] = solution[j]
             neighbour[j] = solution[i]
-            yield neighbour
+            yield neighbour #isso aqui faz a função funcionar como gerador de neighbours (assim não precisamos gerar a vizinhança toda, só um de cada vez, mas podemos iterar)
             #neighbours.append(neighbour)
     #return neighbours
 
-def getBestNeighbour(tsp, neighbours):
-    bestRouteLength = routeLength(tsp, neighbours[0])
-    bestNeighbour = neighbours[0]
-    for neighbour in neighbours:
-        currentRouteLength = routeLength(tsp, neighbour)
-        if currentRouteLength < bestRouteLength:
-            bestRouteLength = currentRouteLength
-            bestNeighbour = neighbour
-    return bestNeighbour, bestRouteLength
+#def getBestNeighbour(tsp, neighbours):
+#    bestRouteLength = routeLength(tsp, neighbours[0])
+#    bestNeighbour = neighbours[0]
+#    for neighbour in neighbours:
+#        currentRouteLength = routeLength(tsp, neighbour)
+#        if currentRouteLength < bestRouteLength:
+#            bestRouteLength = currentRouteLength
+#            bestNeighbour = neighbour
+#    return bestNeighbour, bestRouteLength
 
 def getFirstImprovement(tsp, curSolution, neighbours):
     curSolutionLength = routeLength(tsp, curSolution)
@@ -77,19 +79,19 @@ def getFirstImprovement(tsp, curSolution, neighbours):
     return curNeighbour
 
 #Função do Hill Climbing em si
-#recebe uma instância do problema (talvez o k da k-exchange possa ser um parâmetro tbm?)
+#recebe uma instância do problema
 def hillClimbing(tsp):
     currentSolution = randomSolution(tsp)
-    neighbours = getNeighbours(currentSolution)
+    neighbours = getNeighbours(currentSolution) #é um generator sobre o qual podemos iterar
     firstImprovement = getFirstImprovement(tsp, currentSolution, neighbours)
 
-    while firstImprovement is not None:
-        neighbours.close()
+    while firstImprovement is not None: #firstImprovement só vai ser None quando nenhum dos vizinhos for melhor que a solução atual, significando que atingimos um pico
+        neighbours.close() #necessário pq vamos criar outro generator pros vizinhos da nova solução
         currentSolution = firstImprovement
         neighbours = getNeighbours(currentSolution)
         firstImprovement = getFirstImprovement(tsp, currentSolution, neighbours)
 
-    makeSolutionStartAtZero(currentSolution)
+    makeSolutionStartAtZero(currentSolution) #isso aqui é só pra ficar bonitinho mesmo
 
     return currentSolution, routeLength(tsp, currentSolution)
 
