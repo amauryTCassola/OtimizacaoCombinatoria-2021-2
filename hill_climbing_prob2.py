@@ -1,4 +1,6 @@
 import random
+import sys
+from read_text_file import *
 
 #struct/classe pra uma solução do problema
 #Matriz X representando o caminho
@@ -8,17 +10,17 @@ class Problem2Instance:
         self.distances = distances
         self.demands = demands
         self.limits = limits
-
+        self.limits[0] = sum(self.demands)
+        self.n = len(limits)
 
 
 #Função pra validação de solução
 #Checa se os pesos respeitam as restruções dos problemas
 def isSolution(candidate, instance):
     makeSolutionStartAtZero(candidate)
-    n = len(instance.demands)
     curWeight = sum(instance.demands)
-    for i in range(2,n):
-        if curWeight > instance.limits[candidate[i]]:
+    for i in range(len(candidate)):
+        if curWeight > instance.limits[candidate[i]] or curWeight < instance.demands[candidate[i]]:
             return False
         curWeight = curWeight - instance.demands[candidate[i]]
     return True
@@ -29,7 +31,7 @@ def makeSolutionStartAtZero(solution):
         solution.append(first)
 
 
-def randomSolution(tsp):
+def randomTSPSolution(tsp):
     cities = list(range(len(tsp)))
     solution = []
 
@@ -40,73 +42,87 @@ def randomSolution(tsp):
 
     return solution
 
-def routeLength(tsp, solution):
+def randomSolution(instance):
+    randomSol = randomTSPSolution(instance.distances)
+    while isSolution(randomSol, instance) == False:
+        randomSol = randomTSPSolution(instance.distances)
+    return randomSol
+
+def routeLength(problemInstance, solution):
     routeLength = 0
     for i in range(len(solution)):
-        routeLength += tsp[solution[i - 1]][solution[i]]
+        routeLength += problemInstance.distances[solution[i - 1]][solution[i]]
     return routeLength
 
 #Função pra geração de vizinho aleatório
-def getNeighbours(solution):
-    neighbours = []
+def getNeighbours(solution, instance):
     for i in range(len(solution)):
         for j in range(i + 1, len(solution)):
             neighbour = solution.copy()
             neighbour[i] = solution[j]
             neighbour[j] = solution[i]
-            yield neighbour #isso aqui faz a função funcionar como gerador de neighbours (assim não precisamos gerar a vizinhança toda, só um de cada vez, mas podemos iterar)
-            #neighbours.append(neighbour)
-    #return neighbours
+            if isSolution(neighbour, instance):
+                yield neighbour #isso aqui faz a função funcionar como gerador de neighbours (assim não precisamos gerar a vizinhança toda, só um de cada vez, mas podemos iterar)
+            else:
+                continue
 
-#def getBestNeighbour(tsp, neighbours):
-#    bestRouteLength = routeLength(tsp, neighbours[0])
-#    bestNeighbour = neighbours[0]
-#    for neighbour in neighbours:
-#        currentRouteLength = routeLength(tsp, neighbour)
-#        if currentRouteLength < bestRouteLength:
-#            bestRouteLength = currentRouteLength
-#            bestNeighbour = neighbour
-#    return bestNeighbour, bestRouteLength
-
-def getFirstImprovement(tsp, curSolution, neighbours):
-    curSolutionLength = routeLength(tsp, curSolution)
+def getFirstImprovement(problemInstance, curSolution, neighbours):
+    curSolutionLength = routeLength(problemInstance, curSolution)
     curNeighbour = next(neighbours)
-    while curSolutionLength <= routeLength(tsp, curNeighbour):
+    while curSolutionLength <= routeLength(problemInstance, curNeighbour):
         try:
             curNeighbour = next(neighbours)
         except StopIteration:
             return None
     return curNeighbour
 
+
 #Função do Hill Climbing em si
 #recebe uma instância do problema
-def hillClimbing(tsp):
-    currentSolution = randomSolution(tsp)
-    neighbours = getNeighbours(currentSolution) #é um generator sobre o qual podemos iterar
-    firstImprovement = getFirstImprovement(tsp, currentSolution, neighbours)
+def hillClimbing(problemInstance):
+    currentSolution = randomSolution(problemInstance)
+    neighbours = getNeighbours(currentSolution, problemInstance) #é um generator sobre o qual podemos iterar
+    firstImprovement = getFirstImprovement(problemInstance, currentSolution, neighbours)
 
     while firstImprovement is not None: #firstImprovement só vai ser None quando nenhum dos vizinhos for melhor que a solução atual, significando que atingimos um pico
         neighbours.close() #necessário pq vamos criar outro generator pros vizinhos da nova solução
         currentSolution = firstImprovement
-        neighbours = getNeighbours(currentSolution)
-        firstImprovement = getFirstImprovement(tsp, currentSolution, neighbours)
+        neighbours = getNeighbours(currentSolution, problemInstance)
+        firstImprovement = getFirstImprovement(problemInstance, currentSolution, neighbours)
 
     makeSolutionStartAtZero(currentSolution) #isso aqui é só pra ficar bonitinho mesmo
 
-    return currentSolution, routeLength(tsp, currentSolution)
-
-
+    return currentSolution, routeLength(problemInstance, currentSolution)
 
 def main():
-    tsp = [
-        [0, 9, 6, 7, 100],
-        [9, 0, 3, 100, 10],
-        [6, 3, 0, 5, 4],
-        [7, 100, 5, 0, 8],
-        [100, 10, 4, 8, 0]
-    ]
 
-    print(hillClimbing(tsp))
+    n = len(sys.argv)
+    if n < 3:
+        exit()
+    
+    path = sys.argv[1]
+    iterations = int(sys.argv[2])
+
+    distances, demands, limits = InstanceFromTextFile(path)
+
+    instance = Problem2Instance(distances, demands, limits)
+
+    results = []
+
+    for i in range(iterations):
+        results.append(hillClimbing(instance))
+
+    bestResult = results[0][1]
+    bestPath = []
+
+    for i in range(iterations):
+        curResult = results[i][1]
+        if curResult < bestResult:
+            bestResult = curResult
+            bestPath = results[i][0]
+
+    print(bestPath)
+    print(bestResult)
 
 if __name__ == "__main__":
     main()
